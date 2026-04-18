@@ -59,9 +59,9 @@ app.post("/ask", async (req, res) => {
         console.warn(`⚠️ Primary model (${MODEL_NAME}) failed:`, primaryError.message);
         
         if (primaryError.message.includes("429") || primaryError.message.includes("quota")) {
-            console.log("🔄 Quota hit. Attempting fallback to gemini-1.5-flash...");
+            console.log("🔄 Quota hit. Attempting fallback to gemini-2.5-flash...");
             try {
-                const fallbackModel = "gemini-1.5-flash";
+                const fallbackModel = "gemini-2.5-flash";
                 await attemptGeneration(fallbackModel, question, res);
             } catch (fallbackError) {
                 handleFinalError(fallbackError, res);
