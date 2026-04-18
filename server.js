@@ -52,36 +52,53 @@ app.post("/ask", async (req, res) => {
         return res.status(500).json({ error: "Server configuration error: API key missing." });
     }
 
+    // Attempt generation with primary model, then fallback if needed
     try {
-        const result = await model.generateContent(question);
-        const response = await result.response;
-        const answer = response.text();
-
-        if (answer) {
-            res.json({ answer });
-        } else {
-            res.status(500).json({ error: "Gemini returned an empty response." });
-        }
-
-    } catch (error) {
-        console.error("Gemini SDK Error:", error.message);
+        await attemptGeneration(MODEL_NAME, question, res);
+    } catch (primaryError) {
+        console.warn(`⚠️ Primary model (${MODEL_NAME}) failed:`, primaryError.message);
         
-        let errorMessage = "Failed to get answer from Gemini AI";
-        
-        // Specific handling for common errors
-        if (error.message.includes("API key expired")) {
-            errorMessage = "The API key provided has expired. Please check your Google AI Studio account.";
-        } else if (error.message.includes("API_KEY_INVALID")) {
-            errorMessage = "The API key is invalid. Please double-check the .env file.";
-        } else if (error.message.includes("429")) {
-            errorMessage = "Quota exceeded. Please try again later.";
+        if (primaryError.message.includes("429") || primaryError.message.includes("quota")) {
+            console.log("🔄 Quota hit. Attempting fallback to gemini-1.5-flash...");
+            try {
+                const fallbackModel = "gemini-1.5-flash";
+                await attemptGeneration(fallbackModel, question, res);
+            } catch (fallbackError) {
+                handleFinalError(fallbackError, res);
+            }
         } else {
-            errorMessage = error.message;
+            handleFinalError(primaryError, res);
         }
-
-        res.status(500).json({ error: errorMessage });
     }
 });
+
+async function attemptGeneration(modelName, question, res) {
+    const model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: 'v1' });
+    const result = await model.generateContent(question);
+    const response = await result.response;
+    const answer = response.text();
+
+    if (answer) {
+        res.json({ answer, modelUsed: modelName });
+    } else {
+        throw new Error("Empty response from AI");
+    }
+}
+
+function handleFinalError(error, res) {
+    console.error("Final Error:", error.message);
+    let errorMessage = "Failed to get answer from Gemini AI";
+    
+    if (error.message.includes("API key expired")) {
+        errorMessage = "The API key has expired. Please renew it in Google AI Studio.";
+    } else if (error.message.includes("429")) {
+        errorMessage = "You've reached the free tier limit for both models. Please wait a moment and try again.";
+    } else {
+        errorMessage = error.message;
+    }
+
+    res.status(500).json({ error: errorMessage });
+}
 
 // Catch-all route to serve the frontend for any other request
 app.use((req, res) => {

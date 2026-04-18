@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: gemini-ai-assistant
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false # You will set this in the Render dashboard
+      - key: PORT
+        value: 3000
