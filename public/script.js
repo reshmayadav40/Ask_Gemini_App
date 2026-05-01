@@ -88,7 +88,7 @@ async function handleSubmit() {
     chatWindow.scrollTop = chatWindow.scrollHeight;
 
     try {
-        const res = await fetch("/ask", {
+        const res = await fetch("https://ask-gemini-app.onrender.com/ask", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ question }),
